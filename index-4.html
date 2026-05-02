@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦄 Unicorn Rainbow Maze Adventure!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --pink: #ff6eb4;
+    --purple: #b96cff;
+    --blue: #6ec6ff;
+    --mint: #6effd4;
+    --yellow: #ffe96e;
+    --orange: #ffb46e;
+    --red: #ff6e6e;
+    --bg: #9b6fd4;
+    --card: rgba(0,0,0,0.18);
+    --wall: #4a1a7a;
+    --wall-border: #7a3aaa;
+    --path: #9b6fd4;
+    --cell: 38px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    color: white;
+  }
+
+  /* Animated starfield background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(circle at 20% 30%, rgba(100,40,180,0.35) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(80,20,160,0.3) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(140,80,200,0.15) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .star {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--dur, 3s) var(--delay, 0s) infinite;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+  }
+
+  /* Header */
+  header {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 20px 16px 0;
+  }
+
+  .game-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue), var(--mint), var(--yellow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(185,108,255,0.5));
+    animation: titlePulse 3s ease-in-out infinite;
+  }
+
+  @keyframes titlePulse {
+    0%, 100% { filter: drop-shadow(0 0 20px rgba(185,108,255,0.5)); }
+    50% { filter: drop-shadow(0 0 35px rgba(255,110,180,0.7)); }
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.7);
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px auto;
+    padding: 0 16px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .stat-pill {
+    background: rgba(0,0,0,0.25);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 50px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(10px);
+    color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  .stat-pill span { font-size: 1.1em; }
+
+  /* Level dots */
+  .level-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 0 auto 16px;
+    padding: 0 16px;
+    position: relative;
+    z-index: 10;
+    max-width: 600px;
+  }
+
+  .level-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .level-dot.unlocked {
+    background: rgba(110,255,212,0.2);
+    border-color: var(--mint);
+    color: var(--mint);
+  }
+
+  .level-dot.current {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border-color: transparent;
+    color: white;
+    animation: currentPulse 2s ease-in-out infinite;
+    transform: scale(1.15);
+  }
+
+  .level-dot.completed {
+    background: linear-gradient(135deg, var(--mint), var(--blue));
+    border-color: transparent;
+    color: #1a0a2e;
+  }
+
+  @keyframes currentPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(185,108,255,0.5); }
+    50% { box-shadow: 0 0 0 8px rgba(185,108,255,0); }
+  }
+
+  /* Main game area */
+  .game-area {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px 24px;
+  }
+
+  /* Maze info */
+  .maze-info {
+    text-align: center;
+  }
+
+  .maze-level-name {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, var(--yellow), var(--orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .maze-tip {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 2px;
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  /* Maze container */
+  .maze-wrapper {
+    position: relative;
+    background: #fff8fe;
+    border-radius: 20px;
+    padding: 10px;
+    border: 3px solid #e890cc;
+    box-shadow: 0 8px 40px rgba(185,108,255,0.25), 0 2px 8px rgba(255,110,180,0.15);
+  }
+
+  canvas {
+    display: block;
+    border-radius: 12px;
+    cursor: none;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 52px);
+    grid-template-rows: repeat(3, 52px);
+    gap: 4px;
+  }
+
+  .dpad-btn {
+    background: linear-gradient(135deg, rgba(185,108,255,0.3), rgba(255,110,180,0.3));
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    color: white;
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  .dpad-btn:active, .dpad-btn.pressed {
+    background: linear-gradient(135deg, rgba(185,108,255,0.7), rgba(255,110,180,0.7));
+    transform: scale(0.93);
+    border-color: var(--purple);
+  }
+
+  .dpad-btn.center {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    font-size: 1rem;
+    font-family: 'Fredoka One', cursive;
+  }
+
+  .dpad-btn.empty { visibility: hidden; }
+
+  .hint-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .hint-btn, .reset-btn {
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hint-btn {
+    background: linear-gradient(135deg, var(--yellow), var(--orange));
+    color: #2a0a0a;
+  }
+
+  .reset-btn {
+    background: rgba(0,0,0,0.2);
+    color: white;
+    border: 1.5px solid rgba(255,255,255,0.35);
+  }
+
+  .hint-btn:hover { transform: scale(1.05); }
+  .reset-btn:hover { background: rgba(0,0,0,0.35); }
+
+  /* Timer bar */
+  .timer-bar-wrap {
+    width: 100%;
+    max-width: 400px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50px;
+    height: 8px;
+    overflow: hidden;
+  }
+
+  .timer-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--mint), var(--blue), var(--purple), var(--pink));
+    border-radius: 50px;
+    transition: width 0.3s linear;
+    background-size: 200% 100%;
+    animation: timerShimmer 2s linear infinite;
+  }
+
+  @keyframes timerShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+
+  /* Skill badges */
+  .badges-area {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 500px;
+  }
+
+  .badge {
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    opacity: 0.4;
+    transition: all 0.5s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .badge.earned {
+    opacity: 1;
+    border-color: var(--yellow);
+    background: rgba(255,233,110,0.1);
+    animation: badgeEarned 0.5s ease-out;
+  }
+
+  @keyframes badgeEarned {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Overlay screens */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    backdrop-filter: blur(8px);
+    background: rgba(10, 5, 20, 0.7);
+  }
+
+  .overlay.hidden { display: none; }
+
+  .overlay-card {
+    background: linear-gradient(135deg, rgba(30,10,60,0.95), rgba(10,5,30,0.95));
+    border: 2px solid rgba(185,108,255,0.4);
+    border-radius: 28px;
+    padding: 36px 28px;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 0 60px rgba(185,108,255,0.3);
+    animation: cardPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes cardPop {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .overlay-emoji {
+    font-size: 4rem;
+    margin-bottom: 12px;
+    display: block;
+    animation: bounce 1s ease-in-out infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+
+  .overlay-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .overlay-subtitle {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 20px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .stars-earned {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 2rem;
+  }
+
+  .star-icon { 
+    animation: starPop 0.3s calc(var(--i) * 0.15s) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes starPop {
+    from { transform: scale(0) rotate(-180deg); }
+    to { transform: scale(1) rotate(0deg); }
+  }
+
+  .badge-earned-msg {
+    background: rgba(255,233,110,0.1);
+    border: 1.5px solid var(--yellow);
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--yellow);
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .overlay-btn {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none;
+    border-radius: 50px;
+    padding: 14px 36px;
+    color: white;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(185,108,255,0.4);
+    width: 100%;
+  }
+
+  .overlay-btn:hover { transform: scale(1.04); box-shadow: 0 6px 30px rgba(185,108,255,0.6); }
+
+  .overlay-btn-secondary {
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.2);
+    margin-top: 10px;
+    font-size: 1rem;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+  }
+
+  /* Floating particles */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    font-size: 1.2rem;
+    animation: float-up 2s ease-out forwards;
+    z-index: 200;
+  }
+
+  @keyframes float-up {
+    0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-150px) scale(0.5) rotate(360deg); opacity: 0; }
+  }
+
+  .progress-section {
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+    z-index: 10;
+    padding: 0 16px;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    margin-bottom: 6px;
+  }
+
+  .xp-bar-wrap {
+    background: rgba(255,255,255,0.08);
+    border-radius: 50px;
+    height: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .xp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--pink), var(--orange), var(--yellow));
+    border-radius: 50px;
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    background-size: 300% 100%;
+    animation: xpShimmer 3s linear infinite;
+  }
+
+  @keyframes xpShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+  }
+
+  /* Login screen */
+  .login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--bg);
+  }
+
+  .login-screen.hidden { display: none; }
+
+  .login-card {
+    background: rgba(0,0,0,0.25);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 28px;
+    padding: 36px 28px;
+    text-align: center;
+    max-width: 380px;
+    width: 100%;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+
+  .login-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2rem;
+    color: white;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    margin-bottom: 6px;
+  }
+
+  .login-sub {
+    color: rgba(255,255,255,0.9);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  .profile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .profile-btn {
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 16px;
+    padding: 12px 16px;
+    color: white;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .profile-btn:hover {
+    background: rgba(255,255,255,0.28);
+    border-color: white;
+    transform: scale(1.02);
+  }
+
+  .profile-btn-info { display: flex; flex-direction: column; gap: 2px; }
+  .profile-btn-name { font-size: 1rem; }
+  .profile-btn-stats { font-size: 0.75rem; opacity: 0.85; font-weight: 600; }
+  .profile-btn-avatar { font-size: 1.8rem; }
+
+  .new-profile-section {
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding-top: 18px;
+    margin-top: 4px;
+  }
+
+  .new-profile-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 10px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .name-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .name-input {
+    flex: 1;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: white;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .name-input::placeholder { color: rgba(255,255,255,0.5); }
+  .name-input:focus { border-color: white; }
+
+  .avatar-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .avatar-opt {
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+
+  .avatar-opt:hover { transform: scale(1.2); }
+  .avatar-opt.selected { border-color: white; background: rgba(255,255,255,0.2); }
+
+  .create-btn {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    color: white;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+  }
+
+  .create-btn:hover { transform: scale(1.05); }
+
+  /* Current user chip */
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(0,0,0,0.22);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 50px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  .user-chip:hover { background: rgba(0,0,0,0.35); }
+
+  @media (max-width: 480px) {
+    :root { --cell: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars background -->
+<div class="stars" id="stars"></div>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div style="font-size:3rem;margin-bottom:8px;">🦄</div>
+    <div class="login-title">Who's Playing?</div>
+    <div class="login-sub">Pick your profile or create a new one!</div>
+
+    <div class="profile-list" id="profileList"></div>
+
+    <div class="new-profile-section">
+      <div class="new-profile-label">✨ New Player</div>
+      <div class="avatar-row" id="avatarRow">
+        <span class="avatar-opt selected" data-a="🦄">🦄</span>
+        <span class="avatar-opt" data-a="🌈">🌈</span>
+        <span class="avatar-opt" data-a="⭐">⭐</span>
+        <span class="avatar-opt" data-a="🦋">🦋</span>
+        <span class="avatar-opt" data-a="🐉">🐉</span>
+        <span class="avatar-opt" data-a="💎">💎</span>
+      </div>
+      <div class="name-input-row">
+        <input class="name-input" id="nameInput" type="text" placeholder="Enter your name..." maxlength="16" />
+        <button class="create-btn" onclick="createProfile()">Go! 🚀</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Win overlay -->
+<div class="overlay hidden" id="winOverlay">
+  <div class="overlay-card">
+    <span class="overlay-emoji" id="winEmoji">🦄</span>
+    <div class="overlay-title" id="winTitle">Amazing!</div>
+    <div class="overlay-subtitle" id="winSubtitle">You found the rainbow!</div>
+    <div class="stars-earned" id="starsEarned"></div>
+    <div class="badge-earned-msg" id="badgeEarnedMsg"></div>
+    <button class="overlay-btn" id="nextBtn" onclick="nextLevel()">Next Level ✨</button>
+    <button class="overlay-btn overlay-btn-secondary" onclick="closeWin()">Play Again 🔄</button>
+  </div>
+</div>
+
+<!-- Game complete overlay -->
+<div class="overlay hidden" id="completeOverlay">
+  <div class="overlay-card">
+    <span class="overlay-emoji">🌈</span>
+    <div class="overlay-title">You Did It!</div>
+    <div class="overlay-subtitle">You completed ALL 10 mazes! You are a true Unicorn Champion! 🏆✨</div>
+    <div class="stars-earned" id="finalStars"></div>
+    <button class="overlay-btn" onclick="restartGame()">Play Again! 🦄</button>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="game-title">🦄 Unicorn Maze Adventure 🌈</div>
+  <div class="subtitle">Help Sparkle the Unicorn reach the rainbow!</div>
+  <div style="margin-top:10px;display:flex;justify-content:center;">
+    <div class="user-chip" onclick="switchUser()" title="Switch player">
+      <span id="userAvatar">🦄</span>
+      <span id="userName">Player</span>
+      <span style="opacity:0.7;font-size:0.75rem;">▼ switch</span>
+    </div>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat-pill"><span>⭐</span> <span id="totalStars">0</span> Stars</div>
+  <div class="stat-pill"><span>🏅</span> Level <span id="currentLevelNum">1</span>/10</div>
+  <div class="stat-pill"><span>⏱️</span> <span id="timerDisplay">0s</span></div>
+  <div class="stat-pill"><span>💡</span> Hints: <span id="hintCount">3</span></div>
+</div>
+
+<!-- Level dots -->
+<div class="level-dots" id="levelDots"></div>
+
+<!-- XP bar -->
+<div class="progress-section">
+  <div class="progress-label">
+    <span>🌟 Unicorn Power</span>
+    <span id="xpLabel">0 / 100 XP</span>
+  </div>
+  <div class="xp-bar-wrap">
+    <div class="xp-bar" id="xpBar" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- Game area -->
+<div class="game-area">
+  <div class="maze-info">
+    <div class="maze-level-name" id="mazeLevelName">Level 1: Meadow Path</div>
+    <div class="maze-tip" id="mazeTip">Use arrow keys or tap the buttons below!</div>
+  </div>
+
+  <div class="maze-wrapper">
+    <canvas id="mazeCanvas"></canvas>
+  </div>
+
+  <div class="timer-bar-wrap" style="max-width:400px;width:100%">
+    <div class="timer-bar" id="timerBarEl" style="width:100%"></div>
+  </div>
+
+  <!-- D-Pad controls -->
+  <div class="controls">
+    <div class="dpad">
+      <button class="dpad-btn empty"></button>
+      <button class="dpad-btn" id="btnUp" ontouchstart="handleTouch('up')" onclick="movePlayer('up')">▲</button>
+      <button class="dpad-btn empty"></button>
+      <button class="dpad-btn" id="btnLeft" ontouchstart="handleTouch('left')" onclick="movePlayer('left')">◀</button>
+      <button class="dpad-btn center" onclick="resetMaze()">↺</button>
+      <button class="dpad-btn" id="btnRight" ontouchstart="handleTouch('right')" onclick="movePlayer('right')">▶</button>
+      <button class="dpad-btn empty"></button>
+      <button class="dpad-btn" id="btnDown" ontouchstart="handleTouch('down')" onclick="movePlayer('down')">▼</button>
+      <button class="dpad-btn empty"></button>
+    </div>
+    <div class="hint-row">
+      <button class="hint-btn" onclick="showHint()">💡 Hint</button>
+      <button class="reset-btn" onclick="resetMaze()">🔄 Reset</button>
+    </div>
+  </div>
+
+  <!-- Skill Badges -->
+  <div class="badges-area" id="badgesArea"></div>
+</div>
+
+<script>
+// ===================== GAME CONFIG =====================
+
+const LEVEL_CONFIGS = [
+  { name: "Meadow Path",       size: 11, timeBonus: 150, tip: "Find your way through the flower meadow! 🌸", skill: "Explorer",    emoji: "🌸" },
+  { name: "Butterfly Garden",  size: 13, timeBonus: 140, tip: "Butterflies love mazes too! Follow the path! 🦋", skill: "Navigator",   emoji: "🦋" },
+  { name: "Rainbow Bridge",    size: 15, timeBonus: 130, tip: "Cross the rainbow bridge! Can you find the way? 🌈", skill: "Pathfinder",  emoji: "🌈" },
+  { name: "Crystal Caves",     size: 17, timeBonus: 120, tip: "The crystals sparkle — don't get lost! 💎", skill: "Scout",       emoji: "💎" },
+  { name: "Starlight Forest",  size: 19, timeBonus: 120, tip: "Stars light your way through the forest! ⭐", skill: "Wayfinder",   emoji: "⭐" },
+  { name: "Cloud Kingdom",     size: 21, timeBonus: 110, tip: "Float through the clouds to the castle! ☁️", skill: "Cloud Walker", emoji: "☁️" },
+  { name: "Magic Waterfall",   size: 23, timeBonus: 100, tip: "Listen for the waterfall — it leads to the end! 💧", skill: "Adventurer",  emoji: "💧" },
+  { name: "Moonlit Mountains", size: 25, timeBonus: 90,  tip: "The moon shines on the secret path! 🌙", skill: "Trailblazer", emoji: "🌙" },
+  { name: "Dragon's Lair",     size: 27, timeBonus: 80,  tip: "The friendly dragon guards the treasure! 🐉", skill: "Champion",    emoji: "🐉" },
+  { name: "Rainbow Palace",    size: 29, timeBonus: 70,  tip: "The final challenge — the Rainbow Palace awaits! 🏰", skill: "Unicorn Master", emoji: "🏰" },
+];
+
+const SKILL_BADGES = [
+  { id: "first_step",   icon: "👣", name: "First Steps",   desc: "Complete your first maze" },
+  { id: "speedy",       icon: "⚡", name: "Speed Racer",   desc: "Complete a maze in under 30 seconds" },
+  { id: "perfect",      icon: "💎", name: "Perfect Run",   desc: "Complete a maze without any hints" },
+  { id: "half_way",     icon: "🌟", name: "Halfway Hero",  desc: "Complete 5 mazes" },
+  { id: "no_reset",     icon: "🎯", name: "Laser Focus",  desc: "Complete a maze without resetting" },
+  { id: "three_stars",  icon: "🌈", name: "Rainbow Star",  desc: "Earn 3 stars on any maze" },
+  { id: "champion",     icon: "🏆", name: "Champion",      desc: "Complete all 10 mazes" },
+  { id: "unicorn_lord", icon: "🦄", name: "Unicorn Lord",  desc: "Earn 25+ total stars" },
+];
+
+// ===================== GAME STATE =====================
+
+let currentLevel = 0;
+let unlockedLevels = 1;
+let totalStars = 0;
+let totalXP = 0;
+let earnedBadges = new Set();
+let levelStars = new Array(10).fill(0);
+
+let maze = [];
+let mazeSize = 7;
+let player = { x: 1, y: 1 };
+let exit = { x: 0, y: 0 };
+let startTime = 0;
+let timerInterval = null;
+let elapsed = 0;
+let hintsLeft = 3;
+let hintPath = [];
+let showingHint = false;
+let hintTimeout = null;
+let usedHint = false;
+let resetCount = 0;
+let moveHistory = [];
+
+const canvas = document.getElementById('mazeCanvas');
+const ctx = canvas.getContext('2d');
+
+// ===================== MAZE GENERATION =====================
+
+function generateMaze(size) {
+  // Create grid of walls
+  const grid = Array.from({length: size}, () => Array(size).fill(1));
+  
+  function inBounds(x, y) { return x > 0 && y > 0 && x < size-1 && y < size-1; }
+  
+  function carve(x, y) {
+    grid[y][x] = 0;
+    const dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random()-0.5);
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx, ny = y + dy;
+      if (inBounds(nx, ny) && grid[ny][nx] === 1) {
+        grid[y + dy/2][x + dx/2] = 0;
+        carve(nx, ny);
+      }
+    }
+  }
+  
+  carve(1, 1);
+  
+  // Ensure exit is accessible
+  grid[size-2][size-2] = 0;
+  if (grid[size-3][size-2] === 1 && grid[size-2][size-3] === 1) {
+    grid[size-3][size-2] = 0;
+  }
+  
+  return grid;
+}
+
+function solveMaze(maze, start, end) {
+  const size = maze.length;
+  const queue = [[start.x, start.y, []]];
+  const visited = new Set();
+  visited.add(`${start.x},${start.y}`);
+  
+  while (queue.length) {
+    const [x, y, path] = queue.shift();
+    if (x === end.x && y === end.y) return [...path, {x, y}];
+    for (const [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+      const nx = x+dx, ny = y+dy;
+      if (nx>=0 && ny>=0 && nx<size && ny<size && maze[ny][nx]===0 && !visited.has(`${nx},${ny}`)) {
+        visited.add(`${nx},${ny}`);
+        queue.push([nx, ny, [...path, {x, y}]]);
+      }
+    }
+  }
+  return [];
+}
+
+// ===================== RENDERING =====================
+
+const UNICORN = '🦄';
+const RAINBOW_GOAL = '🌈';
+const SPARKLE_EMOJIS = ['✨','💫','⭐','🌟'];
+
+let animFrame = 0;
+let unicornBob = 0;
+
+function getCellSize() {
+  const maxWidth = Math.min(window.innerWidth - 56, 540);
+  const maxHeight = window.innerHeight * 0.5;
+  const byWidth = Math.floor(maxWidth / mazeSize);
+  const byHeight = Math.floor(maxHeight / mazeSize);
+  return Math.max(16, Math.min(byWidth, byHeight, 40));
+}
+
+function initCanvas() {
+  const cs = getCellSize();
+  canvas.width = mazeSize * cs;
+  canvas.height = mazeSize * cs;
+  drawMaze();
+}
+
+function drawMaze() {
+  if (!maze || !maze.length) return;
+  const cs = getCellSize();
+  const W = mazeSize * cs;
+  const H = mazeSize * cs;
+  const t = Date.now() / 1000;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // White/cream background
+  ctx.fillStyle = '#fff8fe';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle pink grid tint on path cells
+  for (let row = 0; row < mazeSize; row++) {
+    for (let col = 0; col < mazeSize; col++) {
+      if (maze[row][col] === 0) {
+        ctx.fillStyle = 'rgba(255,182,217,0.08)';
+        ctx.fillRect(col * cs, row * cs, cs, cs);
+      }
+    }
+  }
+
+  // Draw hint path
+  if (showingHint && hintPath.length) {
+    for (let i = 0; i < hintPath.length; i++) {
+      const {x, y} = hintPath[i];
+      const alpha = 0.25 + 0.12 * Math.sin(Date.now()/300 + i * 0.5);
+      ctx.fillStyle = `rgba(255,110,180,${alpha})`;
+      ctx.fillRect(x * cs + 2, y * cs + 2, cs - 4, cs - 4);
+    }
+  }
+
+  // Draw exit glow behind rainbow
+  const ex = exit.x * cs + cs/2;
+  const ey = exit.y * cs + cs/2;
+  const hue = (t * 60) % 360;
+  const exitGlow = ctx.createRadialGradient(ex, ey, 0, ex, ey, cs);
+  exitGlow.addColorStop(0, `hsla(${hue},100%,75%,0.5)`);
+  exitGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = exitGlow;
+  ctx.fillRect(exit.x * cs, exit.y * cs, cs, cs);
+
+  // Draw walls as lines (classic maze style)
+  // We draw the borders of each WALL cell, but smartly:
+  // Only draw a wall edge between a wall cell and a path cell (or border)
+  const lw = Math.max(2, cs * 0.13);
+  ctx.strokeStyle = '#c060a0';
+  ctx.lineWidth = lw;
+  ctx.lineCap = 'square';
+
+  // Draw outer border
+  ctx.strokeRect(lw/2, lw/2, W - lw, H - lw);
+
+  // Draw internal walls by checking each cell's edges
+  ctx.beginPath();
+  for (let row = 0; row < mazeSize; row++) {
+    for (let col = 0; col < mazeSize; col++) {
+      if (maze[row][col] === 0) {
+        const x = col * cs, y = row * cs;
+        // Top wall
+        if (row === 0 || maze[row-1][col] === 1) {
+          ctx.moveTo(x, y); ctx.lineTo(x + cs, y);
+        }
+        // Bottom wall
+        if (row === mazeSize-1 || maze[row+1][col] === 1) {
+          ctx.moveTo(x, y + cs); ctx.lineTo(x + cs, y + cs);
+        }
+        // Left wall
+        if (col === 0 || maze[row][col-1] === 1) {
+          ctx.moveTo(x, y); ctx.lineTo(x, y + cs);
+        }
+        // Right wall
+        if (col === mazeSize-1 || maze[row][col+1] === 1) {
+          ctx.moveTo(x + cs, y); ctx.lineTo(x + cs, y + cs);
+        }
+      }
+    }
+  }
+  ctx.stroke();
+
+  // START label
+  ctx.font = `bold ${Math.max(9, cs * 0.38)}px 'Fredoka One', cursive`;
+  ctx.fillStyle = '#b96cff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('START', cs * 1, cs * 0.5);
+
+  // FINISH label
+  ctx.fillStyle = '#ff6eb4';
+  ctx.fillText('FINISH', (mazeSize - 1) * cs, (mazeSize - 0.5) * cs);
+
+  // Draw rainbow goal emoji
+  ctx.font = `${cs * 0.72}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(RAINBOW_GOAL, ex, ey + Math.sin(t * 2) * 1.5);
+
+  // Draw unicorn player
+  const px = player.x * cs + cs / 2;
+  const py = player.y * cs + cs / 2 + Math.sin(t * 2.5) * 1.5;
+
+  // Pink glow under unicorn
+  const playerGlow = ctx.createRadialGradient(px, py, 0, px, py, cs * 0.55);
+  playerGlow.addColorStop(0, 'rgba(255,110,180,0.3)');
+  playerGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = playerGlow;
+  ctx.beginPath();
+  ctx.arc(px, py, cs * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = `${cs * 0.72}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(UNICORN, px, py);
+
+  animFrame++;
+}
+
+// ===================== GAME LOGIC =====================
+
+function startLevel(levelIdx) {
+  currentLevel = levelIdx;
+  const cfg = LEVEL_CONFIGS[levelIdx];
+  mazeSize = cfg.size;
+  maze = generateMaze(mazeSize);
+  player = { x: 1, y: 1 };
+  exit = { x: mazeSize-2, y: mazeSize-2 };
+  hintPath = solveMaze(maze, player, exit);
+  showingHint = false;
+  usedHint = false;
+  resetCount = 0;
+  moveHistory = [];
+  
+  elapsed = 0;
+  clearInterval(timerInterval);
+  startTime = Date.now();
+  timerInterval = setInterval(updateTimer, 100);
+  
+  document.getElementById('mazeLevelName').textContent = `Level ${levelIdx+1}: ${cfg.name}`;
+  document.getElementById('mazeTip').textContent = cfg.tip;
+  document.getElementById('currentLevelNum').textContent = levelIdx + 1;
+  
+  updateLevelDots();
+  initCanvas();
+  updateUI();
+}
+
+function updateTimer() {
+  elapsed = Math.floor((Date.now() - startTime) / 1000);
+  document.getElementById('timerDisplay').textContent = `${elapsed}s`;
+  
+  const maxTime = LEVEL_CONFIGS[currentLevel].timeBonus;
+  const pct = Math.max(0, 100 - (elapsed / maxTime) * 100);
+  document.getElementById('timerBarEl').style.width = pct + '%';
+  
+  drawMaze(); // re-render for animations
+}
+
+function movePlayer(dir) {
+  let nx = player.x, ny = player.y;
+  if (dir === 'up') ny--;
+  if (dir === 'down') ny++;
+  if (dir === 'left') nx--;
+  if (dir === 'right') nx++;
+  
+  if (nx >= 0 && ny >= 0 && nx < mazeSize && ny < mazeSize && maze[ny][nx] === 0) {
+    moveHistory.push({...player});
+    player = { x: nx, y: ny };
+    spawnParticle(SPARKLE_EMOJIS[Math.floor(Math.random()*4)]);
+    
+    if (player.x === exit.x && player.y === exit.y) {
+      setTimeout(levelComplete, 100);
+    }
+    drawMaze();
+  }
+  
+  flashBtn(dir);
+}
+
+function flashBtn(dir) {
+  const map = { up: 'btnUp', down: 'btnDown', left: 'btnLeft', right: 'btnRight' };
+  const btn = document.getElementById(map[dir]);
+  if (btn) {
+    btn.classList.add('pressed');
+    setTimeout(() => btn.classList.remove('pressed'), 150);
+  }
+}
+
+function handleTouch(dir) {
+  movePlayer(dir);
+  event.preventDefault();
+}
+
+function resetMaze() {
+  player = { x: 1, y: 1 };
+  resetCount++;
+  hintPath = solveMaze(maze, player, exit);
+  showingHint = false;
+  moveHistory = [];
+  drawMaze();
+}
+
+function showHint() {
+  if (hintsLeft <= 0) return;
+  hintsLeft--;
+  usedHint = true;
+  document.getElementById('hintCount').textContent = hintsLeft;
+  
+  hintPath = solveMaze(maze, player, exit);
+  showingHint = true;
+  
+  clearTimeout(hintTimeout);
+  hintTimeout = setTimeout(() => {
+    showingHint = false;
+    drawMaze();
+  }, 4000);
+  
+  drawMaze();
+}
+
+function levelComplete() {
+  clearInterval(timerInterval);
+  const cfg = LEVEL_CONFIGS[currentLevel];
+  
+  // Calculate stars
+  let stars = 3;
+  if (elapsed > cfg.timeBonus * 0.5) stars = 2;
+  if (elapsed > cfg.timeBonus) stars = 1;
+  if (usedHint) stars = Math.max(1, stars - 1);
+  
+  levelStars[currentLevel] = Math.max(levelStars[currentLevel], stars);
+  totalStars += stars;
+  
+  // XP calculation
+  const xpGained = stars * 10 + Math.max(0, cfg.timeBonus - elapsed);
+  totalXP += xpGained;
+  
+  // Unlock next level
+  if (currentLevel + 1 < 10) unlockedLevels = Math.max(unlockedLevels, currentLevel + 2);
+  
+  // Check badges
+  const newBadge = checkBadges(stars);
+  
+  // Show win screen
+  const overlay = document.getElementById('winOverlay');
+  const emojis = ['🌸','🦋','🌈','💎','⭐','☁️','💧','🌙','🐉','🏰'];
+  document.getElementById('winEmoji').textContent = emojis[currentLevel];
+  document.getElementById('winTitle').textContent = stars === 3 ? 'Perfect! 🎉' : stars === 2 ? 'Brilliant! ✨' : 'Well Done! 🌟';
+  document.getElementById('winSubtitle').textContent = `You completed ${cfg.name} in ${elapsed}s!`;
+  
+  const starsEl = document.getElementById('starsEarned');
+  starsEl.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const s = document.createElement('span');
+    s.className = 'star-icon';
+    s.style.setProperty('--i', i);
+    s.textContent = i < stars ? '⭐' : '☆';
+    starsEl.appendChild(s);
+  }
+  
+  const badgeMsg = document.getElementById('badgeEarnedMsg');
+  if (newBadge) {
+    badgeMsg.style.display = 'block';
+    badgeMsg.textContent = `🏅 New Badge: ${newBadge.icon} ${newBadge.name}!`;
+  } else {
+    badgeMsg.style.display = 'none';
+  }
+  
+  const nextBtn = document.getElementById('nextBtn');
+  if (currentLevel >= 9) {
+    nextBtn.style.display = 'none';
+  } else {
+    nextBtn.style.display = 'block';
+  }
+  
+  overlay.classList.remove('hidden');
+  
+  spawnBurst();
+  updateUI();
+  saveCurrentUser();
+  
+  // Check game complete
+  if (currentLevel >= 9) {
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      document.getElementById('completeOverlay').classList.remove('hidden');
+      const fs = document.getElementById('finalStars');
+      fs.innerHTML = '';
+      for (let i = 0; i < Math.min(totalStars, 15); i++) {
+        fs.innerHTML += '⭐';
+      }
+    }, 3000);
+  }
+}
+
+function nextLevel() {
+  document.getElementById('winOverlay').classList.add('hidden');
+  if (currentLevel < 9) startLevel(currentLevel + 1);
+}
+
+function closeWin() {
+  document.getElementById('winOverlay').classList.add('hidden');
+  startLevel(currentLevel);
+}
+
+function restartGame() {
+  document.getElementById('completeOverlay').classList.add('hidden');
+  currentLevel = 0;
+  unlockedLevels = 1;
+  totalStars = 0;
+  totalXP = 0;
+  earnedBadges.clear();
+  levelStars.fill(0);
+  hintsLeft = 3;
+  updateBadgesUI();
+  startLevel(0);
+}
+
+// ===================== BADGES =====================
+
+function checkBadges(stars) {
+  let newBadge = null;
+  
+  const completedCount = levelStars.filter(s => s > 0).length;
+  
+  if (!earnedBadges.has('first_step') && completedCount >= 1) {
+    earnedBadges.add('first_step');
+    newBadge = SKILL_BADGES.find(b => b.id === 'first_step');
+  }
+  if (!earnedBadges.has('speedy') && elapsed < 30) {
+    earnedBadges.add('speedy');
+    newBadge = SKILL_BADGES.find(b => b.id === 'speedy');
+  }
+  if (!earnedBadges.has('perfect') && !usedHint) {
+    earnedBadges.add('perfect');
+    newBadge = SKILL_BADGES.find(b => b.id === 'perfect');
+  }
+  if (!earnedBadges.has('half_way') && completedCount >= 5) {
+    earnedBadges.add('half_way');
+    newBadge = SKILL_BADGES.find(b => b.id === 'half_way');
+  }
+  if (!earnedBadges.has('no_reset') && resetCount === 0) {
+    earnedBadges.add('no_reset');
+    newBadge = SKILL_BADGES.find(b => b.id === 'no_reset');
+  }
+  if (!earnedBadges.has('three_stars') && stars === 3) {
+    earnedBadges.add('three_stars');
+    newBadge = SKILL_BADGES.find(b => b.id === 'three_stars');
+  }
+  if (!earnedBadges.has('champion') && completedCount >= 10) {
+    earnedBadges.add('champion');
+    newBadge = SKILL_BADGES.find(b => b.id === 'champion');
+  }
+  if (!earnedBadges.has('unicorn_lord') && totalStars >= 25) {
+    earnedBadges.add('unicorn_lord');
+    newBadge = SKILL_BADGES.find(b => b.id === 'unicorn_lord');
+  }
+  
+  updateBadgesUI();
+  return newBadge;
+}
+
+function updateBadgesUI() {
+  const area = document.getElementById('badgesArea');
+  area.innerHTML = '';
+  for (const b of SKILL_BADGES) {
+    const div = document.createElement('div');
+    div.className = 'badge' + (earnedBadges.has(b.id) ? ' earned' : '');
+    div.title = b.desc;
+    div.innerHTML = `${b.icon} ${b.name}`;
+    area.appendChild(div);
+  }
+}
+
+// ===================== UI UPDATES =====================
+
+function updateLevelDots() {
+  const container = document.getElementById('levelDots');
+  container.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'level-dot';
+    dot.title = LEVEL_CONFIGS[i].name;
+    
+    if (levelStars[i] > 0) {
+      dot.classList.add('completed');
+      dot.textContent = '✓';
+    } else if (i === currentLevel) {
+      dot.classList.add('current');
+      dot.textContent = i + 1;
+    } else if (i < unlockedLevels) {
+      dot.classList.add('unlocked');
+      dot.textContent = i + 1;
+    } else {
+      dot.textContent = '🔒';
+      dot.style.fontSize = '0.6rem';
+    }
+    
+    if (i < unlockedLevels) {
+      dot.onclick = () => {
+        document.getElementById('winOverlay').classList.add('hidden');
+        startLevel(i);
+      };
+    }
+    
+    container.appendChild(dot);
+  }
+}
+
+function updateUI() {
+  document.getElementById('totalStars').textContent = totalStars;
+  document.getElementById('hintCount').textContent = hintsLeft;
+  
+  const xpPct = Math.min(100, (totalXP % 200) / 2);
+  document.getElementById('xpBar').style.width = xpPct + '%';
+  document.getElementById('xpLabel').textContent = `${totalXP} XP`;
+  
+  updateLevelDots();
+  updateBadgesUI();
+}
+
+// ===================== PARTICLES =====================
+
+function spawnParticle(emoji) {
+  if (Math.random() > 0.3) return;
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.textContent = emoji;
+  p.style.left = (20 + Math.random() * 60) + 'vw';
+  p.style.top = (30 + Math.random() * 40) + 'vh';
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), 2000);
+}
+
+function spawnBurst() {
+  const emojis = ['✨','💫','🌟','⭐','🦄','🌈','💎','🎉'];
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      p.style.left = (10 + Math.random() * 80) + 'vw';
+      p.style.top = (20 + Math.random() * 60) + 'vh';
+      p.style.fontSize = (1 + Math.random()) + 'rem';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2000);
+    }, i * 100);
+  }
+}
+
+// ===================== STARS BACKGROUND =====================
+
+function createStars() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top = Math.random() * 100 + 'vh';
+    s.style.setProperty('--dur', (2 + Math.random() * 4) + 's');
+    s.style.setProperty('--delay', (Math.random() * 4) + 's');
+    s.style.opacity = Math.random() * 0.5;
+    const size = 1 + Math.random() * 3;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    container.appendChild(s);
+  }
+}
+
+// ===================== KEYBOARD CONTROLS =====================
+
+document.addEventListener('keydown', e => {
+  const map = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', s: 'down', a: 'left', d: 'right',
+    W: 'up', S: 'down', A: 'left', D: 'right',
+  };
+  if (map[e.key]) {
+    e.preventDefault();
+    movePlayer(map[e.key]);
+  }
+});
+
+// ===================== TOUCH SWIPE =====================
+
+let touchStart = null;
+canvas.addEventListener('touchstart', e => {
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  if (!touchStart) return;
+  const dx = e.changedTouches[0].clientX - touchStart.x;
+  const dy = e.changedTouches[0].clientY - touchStart.y;
+  const absDx = Math.abs(dx), absDy = Math.abs(dy);
+  if (Math.max(absDx, absDy) < 20) return;
+  if (absDx > absDy) movePlayer(dx > 0 ? 'right' : 'left');
+  else movePlayer(dy > 0 ? 'down' : 'up');
+  touchStart = null;
+  e.preventDefault();
+}, { passive: false });
+
+// ===================== USER PROFILES =====================
+
+const AVATARS = ['🦄','🌈','⭐','🦋','🐉','💎'];
+let currentUser = null; // { name, avatar, saves: { levelStars, unlockedLevels, totalStars, totalXP, earnedBadges } }
+let selectedAvatar = '🦄';
+
+function getAllProfiles() {
+  try { return JSON.parse(localStorage.getItem('unicornMazeProfiles') || '[]'); }
+  catch { return []; }
+}
+
+function saveAllProfiles(profiles) {
+  localStorage.setItem('unicornMazeProfiles', JSON.stringify(profiles));
+}
+
+function saveCurrentUser() {
+  if (!currentUser) return;
+  const profiles = getAllProfiles();
+  const idx = profiles.findIndex(p => p.name === currentUser.name);
+  const data = {
+    name: currentUser.name,
+    avatar: currentUser.avatar,
+    levelStars: [...levelStars],
+    unlockedLevels,
+    totalStars,
+    totalXP,
+    earnedBadges: [...earnedBadges],
+    lastPlayed: Date.now()
+  };
+  if (idx >= 0) profiles[idx] = data;
+  else profiles.push(data);
+  saveAllProfiles(profiles);
+}
+
+function loadUser(profile) {
+  currentUser = profile;
+  levelStars = profile.levelStars || new Array(10).fill(0);
+  unlockedLevels = profile.unlockedLevels || 1;
+  totalStars = profile.totalStars || 0;
+  totalXP = profile.totalXP || 0;
+  earnedBadges = new Set(profile.earnedBadges || []);
+  hintsLeft = 3;
+
+  document.getElementById('userName').textContent = profile.name;
+  document.getElementById('userAvatar').textContent = profile.avatar;
+  document.getElementById('loginScreen').classList.add('hidden');
+
+  updateBadgesUI();
+  updateUI();
+
+  // Go to first incomplete level
+  const firstIncomplete = levelStars.findIndex(s => s === 0);
+  startLevel(firstIncomplete >= 0 ? firstIncomplete : 0);
+}
+
+function createProfile() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { document.getElementById('nameInput').focus(); return; }
+  const profiles = getAllProfiles();
+  if (profiles.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    document.getElementById('nameInput').style.borderColor = '#ff6e6e';
+    document.getElementById('nameInput').placeholder = 'Name already taken!';
+    setTimeout(() => {
+      document.getElementById('nameInput').style.borderColor = '';
+      document.getElementById('nameInput').placeholder = 'Enter your name...';
+    }, 1800);
+    return;
+  }
+  const profile = { name, avatar: selectedAvatar, levelStars: new Array(10).fill(0), unlockedLevels: 1, totalStars: 0, totalXP: 0, earnedBadges: [], lastPlayed: Date.now() };
+  profiles.push(profile);
+  saveAllProfiles(profiles);
+  loadUser(profile);
+}
+
+function switchUser() {
+  saveCurrentUser();
+  renderProfileList();
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function renderProfileList() {
+  const list = document.getElementById('profileList');
+  const profiles = getAllProfiles();
+  list.innerHTML = '';
+  if (!profiles.length) {
+    list.innerHTML = '<div style="color:rgba(255,255,255,0.6);font-size:0.85rem;padding:8px;">No profiles yet — create one below!</div>';
+    return;
+  }
+  profiles.sort((a,b) => (b.lastPlayed||0)-(a.lastPlayed||0));
+  for (const p of profiles) {
+    const completed = (p.levelStars||[]).filter(s=>s>0).length;
+    const btn = document.createElement('button');
+    btn.className = 'profile-btn';
+    btn.innerHTML = `
+      <div class="profile-btn-info">
+        <div class="profile-btn-name">${p.name}</div>
+        <div class="profile-btn-stats">⭐ ${p.totalStars||0} stars &nbsp;·&nbsp; ✅ ${completed}/10 levels</div>
+      </div>
+      <div class="profile-btn-avatar">${p.avatar||'🦄'}</div>`;
+    btn.onclick = () => loadUser(p);
+    list.appendChild(btn);
+  }
+}
+
+// Avatar picker
+document.getElementById('avatarRow').addEventListener('click', e => {
+  const opt = e.target.closest('.avatar-opt');
+  if (!opt) return;
+  document.querySelectorAll('.avatar-opt').forEach(a => a.classList.remove('selected'));
+  opt.classList.add('selected');
+  selectedAvatar = opt.dataset.a;
+});
+
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') createProfile();
+});
+
+// ===================== INIT =====================
+
+window.addEventListener('resize', () => {
+  if (maze.length) initCanvas();
+});
+
+// Save on level complete (hook into levelComplete)
+const _origLevelComplete = levelComplete;
+
+createStars();
+updateBadgesUI();
+renderProfileList();
+// Show login screen on start
+document.getElementById('loginScreen').classList.remove('hidden');
+
+</script>
+</body>
+</html>
